@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+
+<html>
+ 
+<head>
+    <meta charset="UTF-8">
+    <title>Step12.タイルレイヤの重ね合わせ|Lefletの応用|埼玉大学谷謙二研究室</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+        integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+        crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+        integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+        crossorigin="">
+    </script>
+    <script>
+        function textToJson(txt) {
+            return JSON.parse(txt)
+        }
+        function httpRequest(url) {
+            var contents;
+            const request = new XMLHttpRequest();
+            request.onreadystatechange = function() {
+                if(request.readyState == 4 && request.status == 200){
+                    contents = request.responseText;
+                }
+            };
+            request.open("GET", url, false);
+            request.send(null);
+            return contents
+        }
+        
+        function checkDatetime(List, dataName) {
+            var datetime = List.filter(function (timeList) {
+                if (timeList.basetime === timeList.validtime
+                && timeList.elements.indexOf(dataName) !== -1) {
+                    //console.log(timeList.basetime)
+                    return timeList.basetime
+                };
+            });
+            return datetime[0]
+        }
+
+        function init() {
+            var timeJson1 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json";
+            var timeJson2 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N2.json";
+            var timeJson3 = "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N3.json";
+        
+            var getThnsTime = httpRequest(timeJson3);
+            var thnsTimeList = textToJson(getThnsTime);
+            var thnsTime = checkDatetime(thnsTimeList, "thns");
+            console.log("thnsTime : ", thnsTime.basetime);
+
+            var getRainsTime = httpRequest(timeJson1);
+            var rainsTimeList = textToJson(getRainsTime);
+            var rainsTime = checkDatetime(rainsTimeList, "hrpns");
+            console.log("rainsTime: ", rainsTime.basetime);
+            
+
+            var map = L.map('mapcontainer', { zoomControl: false });
+            map.setView([35.3622222, 138.7313889], 5);
+            var gsiattr = "<a href='http://portal.cyberjapan.jp/help/termsofuse.html' target='_blank'>地理院タイル</a>";
+            var gsi = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', { attribution: gsiattr });
+            var gsipale = L.tileLayer('http://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { attribution: gsiattr });
+            var osm = L.tileLayer('http://tile.openstreetmap.jp/{z}/{x}/{y}.png',
+                { attribution: "<a href='http://osm.org/copyright' target='_blank'>OpenStreetMap</a> contributors" });
+            //オーバーレイ用のタイルレイヤ
+            //opacityで透過度を設定、maxNativeZoomを指定すると、それ以上のズームレベルのタイルデータは、指定のズームレベルのタイル画像を拡大して表示される
+            var thnsmap = L.tileLayer('https://www.jma.go.jp/bosai/jmatile/data/nowc/' + thnsTime.basetime + '/none/' + thnsTime.basetime + '/surf/thns/{z}/{x}/{y}.png', { opacity: 0.7, maxNativeZoom: 8, attribution: gsiattr });
+            var rainsmap = L.tileLayer('https://www.jma.go.jp/bosai/jmatile/data/nowc/' + rainsTime.basetime + '/none/' + rainsTime.basetime + '/surf/hrpns/{z}/{x}/{y}.png', { opacity: 0.7, maxNativeZoom: 14, attribution: gsiattr });
+            var baseMaps = {
+                "地理院地図": gsi,
+                "淡色地図": gsipale,
+                "オープンストリートマップ": osm
+            };
+            var overlayMaps = {
+                "雷": thnsmap,
+                "雨雲": rainsmap
+            };
+            L.control.layers(baseMaps, overlayMaps).addTo(map);
+            gsipale.addTo(map);
+            thnsmap.addTo(map);
+        }
+    </script>
+</head>
+ 
+<body onload="init()">
+  <div id="mapcontainer" style="position:absolute;top:0;left:0;right:0;bottom:0;"></div>
+</body>
+ 
+</html>
